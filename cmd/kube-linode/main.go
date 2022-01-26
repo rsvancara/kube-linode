@@ -32,8 +32,8 @@ import (
 )
 
 // Constants
-const ufwbin = "./ufw"
-const ufwdata = "user.rules"
+//const ufwbin = "./ufw"
+//const ufwdata = "user.rules"
 
 // Hard coded list of rules
 func fixedRules() []string {
@@ -74,7 +74,7 @@ func UFWReload(ufwcmd string) {
 
 }
 
-func buildUFW(ipList []net.IP) []string {
+func buildUFW(ipList []net.IP, rules string) []string {
 
 	log.Info().Msg("building new rules file for new list of IP addresses")
 
@@ -83,9 +83,9 @@ func buildUFW(ipList []net.IP) []string {
 	var endConfig []string
 	var totalConfig []string
 
-	dat, err := os.Open(ufwdata)
+	dat, err := os.Open(rules)
 	if err != nil {
-		log.Error().Err(err).Msgf("could not open file %s", ufwdata)
+		log.Error().Err(err).Msgf("could not open file %s", rules)
 		return totalConfig
 	}
 
@@ -256,7 +256,7 @@ func main() {
 		newHosts, _ = getKubeNodes(kubeconfig)
 		if isDiff(newHosts, oldHosts) {
 
-			ufwConfig := buildUFW(newHosts)
+			ufwConfig := buildUFW(newHosts, rules)
 
 			writeUFW(ufwConfig, rules)
 
