@@ -67,12 +67,12 @@ func buildNginx(ipList []net.IP) []string {
 	upstreams = append(upstreams, diy)
 
 	var dockerui upstream
-	dockerui.port = 32020
+	dockerui.port = 32018
 	dockerui.upstream = "dockerui"
 	upstreams = append(upstreams, dockerui)
 
 	var tryingadventure upstream
-	tryingadventure.port = 32018
+	tryingadventure.port = 32020
 	tryingadventure.upstream = "tryingadventure"
 	upstreams = append(upstreams, tryingadventure)
 
