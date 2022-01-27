@@ -18,6 +18,17 @@ are detected
 TODO:  Assumes SSH is open to the world. Maybe make an additional tool that tracks IP Address for allowing ssh, like from your home network.  
 
 ### Usage
-
+```bash
 kube-linode -rules /etc/ufw/user.rules -ufw /usr/sbin/ufw
+```
+
+## Kube-Nginx
+
+Polls Linode Kubernetes Service for changes in nodes and updates the node list in an upstream.conf file that you can use in a
+Nginx configuration.  Once the configuration is set, it will call sysctemctl reload nginx to bring in all the changes.  
+
+### usage 
+```bash
+kube-nginx -config /path/to/upstream.conf -systemctl /path/to/systemctl
+```
 

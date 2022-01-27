@@ -20,6 +20,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"os/exec"
+	"os/signal"
 	//
 	// Uncomment to load all auth plugins
 	// _ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -246,28 +247,42 @@ func main() {
 
 	log.Info().Msgf("using rules file %s", rules)
 
-	// Track changes in the list
-	var oldHosts []net.IP
-	var newHosts []net.IP
+	go func() {
+		// Track changes in the list
+		var oldHosts []net.IP
+		var newHosts []net.IP
 
-	// Forever loop
-	for {
+		// Forever loop
+		for {
 
-		newHosts, _ = getKubeNodes(kubeconfig)
-		if isDiff(newHosts, oldHosts) {
+			newHosts, _ = getKubeNodes(kubeconfig)
+			if isDiff(newHosts, oldHosts) {
 
-			ufwConfig := buildUFW(newHosts, rules)
+				ufwConfig := buildUFW(newHosts, rules)
 
-			writeUFW(ufwConfig, rules)
+				writeUFW(ufwConfig, rules)
 
-			UFWReload(ufwcmd)
+				UFWReload(ufwcmd)
+
+				time.Sleep(5 * time.Second)
+			}
+
+			// Reset for the next iteration
+			oldHosts = newHosts
 
 			time.Sleep(5 * time.Second)
 		}
+	}()
+	// Set up channel on which to send signal notifications.
+	// We must use a buffered channel or risk missing the signal
+	// if we're not ready to receive when the signal is sent.
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
 
-		// Reset for the next iteration
-		oldHosts = newHosts
+	// Block until a signal is received.
+	s := <-c
 
-		time.Sleep(5 * time.Second)
-	}
+	// The signal is received, you can now do the cleanup
+	fmt.Println("Got signal:", s)
+
 }

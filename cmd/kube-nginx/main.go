@@ -20,6 +20,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"os/exec"
+	"os/signal"
 )
 
 type upstream struct {
@@ -203,28 +204,43 @@ func main() {
 
 	log.Info().Msgf("using nginx config file %s", nginxconfig)
 
-	// Track changes in the list
-	var oldHosts []net.IP
-	var newHosts []net.IP
+	go func() {
 
-	// Forever loop
-	for {
+		// Track changes in the list
+		var oldHosts []net.IP
+		var newHosts []net.IP
 
-		newHosts, _ = getKubeNodes(kubeconfig)
-		if isDiff(newHosts, oldHosts) {
+		// Forever loop
+		for {
 
-			configs := buildNginx(newHosts)
+			newHosts, _ = getKubeNodes(kubeconfig)
+			if isDiff(newHosts, oldHosts) {
 
-			writeNginx(configs, nginxconfig)
+				configs := buildNginx(newHosts)
 
-			NginxReload(systemctl)
+				writeNginx(configs, nginxconfig)
+
+				NginxReload(systemctl)
+
+				time.Sleep(5 * time.Second)
+			}
+
+			// Reset for the next iteration
+			oldHosts = newHosts
 
 			time.Sleep(5 * time.Second)
 		}
+	}()
 
-		// Reset for the next iteration
-		oldHosts = newHosts
+	// Set up channel on which to send signal notifications.
+	// We must use a buffered channel or risk missing the signal
+	// if we're not ready to receive when the signal is sent.
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
 
-		time.Sleep(5 * time.Second)
-	}
+	// Block until a signal is received.
+	s := <-c
+
+	// The signal is received, you can now do the cleanup
+	fmt.Println("Got signal:", s)
 }
