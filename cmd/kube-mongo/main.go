@@ -65,7 +65,8 @@ func BuildMongoChain(ipList []net.IP) {
 	}
 
 	for _, i := range ipList {
-		err = ipt.Append("filter", "mongodb", "-s", i.String(), "-j", "ACCEPT")
+		//-s 1.2.3.4 -p tcp -m tcp --dport 27017
+		err = ipt.Append("filter", "mongodb", "-s", i.String(), "-p", "tcp", "-m", "tcp", "--dport", "27017", "-j", "ACCEPT")
 		if err != nil {
 			log.Error().Err(err)
 		}
