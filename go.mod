@@ -3,6 +3,7 @@ module cmd/kube-linode/main.go
 go 1.17
 
 require (
+	github.com/coreos/go-iptables v0.6.0
 	github.com/rs/zerolog v1.26.1
 	k8s.io/apimachinery v0.23.2
 	k8s.io/client-go v0.23.2

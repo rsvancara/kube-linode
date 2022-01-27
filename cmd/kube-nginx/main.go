@@ -49,7 +49,7 @@ func NginxReload(systemctlcmd string) {
 	buf.ReadFrom(stdout)
 	result := buf.String()
 
-	log.Info().Msgf("ufw reload completed with %s", result)
+	log.Info().Msgf("nginx reload completed with %s", result)
 
 }
 
