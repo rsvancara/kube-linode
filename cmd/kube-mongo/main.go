@@ -1,8 +1,6 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"context"
 	"flag"
 	"fmt"
@@ -19,19 +17,9 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"os/exec"
 	"os/signal"
 
 	"github.com/coreos/go-iptables/iptables"
-	//
-	// Uncomment to load all auth plugins
-	// _ "k8s.io/client-go/plugin/pkg/client/auth"
-	//
-	// Or uncomment to load specific auth plugins
-	// _ "k8s.io/client-go/plugin/pkg/client/auth/azure"
-	// _ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
-	// _ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
-	// _ "k8s.io/client-go/plugin/pkg/client/auth/openstack"
 )
 
 func BuildMongoChain(ipList []net.IP) {
@@ -71,127 +59,15 @@ func BuildMongoChain(ipList []net.IP) {
 			log.Error().Err(err)
 		}
 	}
-}
 
-func fixedRules() []string {
-
-	fixedRules := []string{
-		"",
-		"### tuple ### allow any 22 0.0.0.0/0 any 0.0.0.0/0 in",
-		"-A ufw-user-input -p tcp --dport 22 -j ACCEPT",
-		"-A ufw-user-input -p udp --dport 22 -j ACCEPT",
-		"",
-	}
-
-	return fixedRules
-}
-
-// UFWReload - Reload UFW after updating the user.rules file
-func UFWReload(ufwcmd string) {
-
-	log.Info().Msgf("reloading ufw using command: %s reload", ufwcmd)
-	cmd := exec.Command(ufwcmd, "reload")
-
-	stdout, err := cmd.StdoutPipe()
+	rules, err := ipt.List("filter", "mongodb")
 	if err != nil {
 		log.Error().Err(err)
 	}
 
-	defer stdout.Close()
-
-	if err := cmd.Start(); err != nil {
-		log.Error().Err(err)
+	for _, v := range rules {
+		log.Info().Msgf("configure rule: %s", v)
 	}
-
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(stdout)
-	result := buf.String()
-
-	log.Info().Msgf("ufw reload completed with %s", result)
-
-}
-
-func buildUFW(ipList []net.IP, rules string) []string {
-
-	log.Info().Msg("building new rules file for new list of IP addresses")
-
-	var startConfig []string
-	var newConfig []string
-	var endConfig []string
-	var totalConfig []string
-
-	dat, err := os.Open(rules)
-	if err != nil {
-		log.Error().Err(err).Msgf("could not open file %s", rules)
-		return totalConfig
-	}
-
-	defer dat.Close()
-
-	scanner := bufio.NewScanner(dat)
-
-	blnStart := false
-	blnEnd := false
-	for scanner.Scan() {
-
-		if !blnStart {
-			startConfig = append(startConfig, scanner.Text())
-		}
-
-		if scanner.Text() == "### RULES ###" {
-			blnStart = true
-		}
-
-		if scanner.Text() == "### END RULES ###" {
-			blnEnd = true
-		}
-
-		if blnEnd {
-			endConfig = append(endConfig, scanner.Text())
-		}
-	}
-
-	// Scan each line for an ip addr match, if the match exists, do nothing
-	// if an ipaddr match does not exist, exclude the line
-	newConfig = append(newConfig, fixedRules()...)
-
-	// Create rules for MongoDB
-	// TODO: Make this configurable
-	for _, n := range ipList {
-		newConfig = append(newConfig, fmt.Sprintf("### tuple ### allow tcp 27017 0.0.0.0/0 any %s in", n.String()))
-		newConfig = append(newConfig, fmt.Sprintf("-A ufw-user-input -p tcp --dport 27017 -s %s -j ACCEPT", n.String()))
-		newConfig = append(newConfig, "")
-	}
-
-	// Build the rules array
-	totalConfig = append(totalConfig, startConfig...)
-	totalConfig = append(totalConfig, newConfig...)
-	totalConfig = append(totalConfig, endConfig...)
-
-	return totalConfig
-}
-
-func writeUFW(ufwConfig []string, rules string) {
-	file, err := os.OpenFile(rules, os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		log.Error().Err(err)
-	}
-
-	defer file.Close()
-
-	datawriter := bufio.NewWriter(file)
-
-	for _, data := range ufwConfig {
-		//fmt.Println(data)
-		_, _ = datawriter.WriteString(data + "\n")
-	}
-
-	datawriter.Flush()
-
-}
-
-func IPTables(ipList []net.IP) {
-
 }
 
 func getKubeNodes(kubeconfig *string) ([]net.IP, error) {
@@ -203,18 +79,18 @@ func getKubeNodes(kubeconfig *string) ([]net.IP, error) {
 	// use the current context in kubeconfig
 	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
 	if err != nil {
-		panic(err.Error())
+		log.Error().Err(err)
 	}
 
 	// create the clientset
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		panic(err.Error())
+		log.Error().Err(err)
 	}
 
 	nodes, err := clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		panic(err.Error())
+		log.Error().Err(err)
 	}
 	available := 0
 	for _, val := range nodes.Items {
@@ -277,33 +153,19 @@ func main() {
 		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
 	}
 
-	var rules string
-	flag.StringVar(&rules, "rules", "/etc/ufw/user.rules", "UFW user.rules file")
-
-	var ufwcmd string
-	flag.StringVar(&ufwcmd, "ufw", "/usr/sbin/ufw", "UFW executable command")
-
 	flag.Parse()
-
-	log.Info().Msgf("using rules file %s", rules)
 
 	go func() {
 		// Track changes in the list
 		var oldHosts []net.IP
 		var newHosts []net.IP
 
-		// Forever loop
 		for {
 
 			newHosts, _ = getKubeNodes(kubeconfig)
 			if isDiff(newHosts, oldHosts) {
 
 				BuildMongoChain(newHosts)
-				//ufwConfig := buildUFW(newHosts, rules)
-
-				//writeUFW(ufwConfig, rules)
-
-				//UFWReload(ufwcmd)
 
 				time.Sleep(5 * time.Second)
 			}
