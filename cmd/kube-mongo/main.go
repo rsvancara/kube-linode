@@ -50,6 +50,12 @@ func BuildMongoChain(ipList []net.IP) {
 		if err != nil {
 			log.Error().Err(err)
 		}
+
+		// Dont forget to add the new chain to INPUT
+		err = ipt.Append("filter", "INPUT", "-j", "mongodb")
+		if err != nil {
+			log.Error().Err(err)
+		}
 	}
 
 	for _, i := range ipList {
