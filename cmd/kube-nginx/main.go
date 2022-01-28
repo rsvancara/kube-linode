@@ -86,14 +86,15 @@ func buildNginx(ipList []net.IP) []string {
 		for _, i := range ipList {
 			totalConfig = append(totalConfig, fmt.Sprintf("server %s:%d weight=100;", i, k.port))
 		}
-		totalConfig = append(totalConfig, fmt.Sprint("}"))
+		totalConfig = append(totalConfig, "}")
 	}
 
 	return totalConfig
 }
 
 func writeNginx(ngixConfig []string, config string) {
-	file, err := os.OpenFile(config, os.O_CREATE|os.O_WRONLY, 0644)
+
+	file, err := os.Create(config)
 	if err != nil {
 		log.Error().Err(err)
 	}
@@ -103,12 +104,14 @@ func writeNginx(ngixConfig []string, config string) {
 	datawriter := bufio.NewWriter(file)
 
 	for _, data := range ngixConfig {
-		//fmt.Println(data)
-		_, _ = datawriter.WriteString(data + "\n")
+
+		//fmt.Fprintln(file, data)
+
+		_, err = datawriter.WriteString(data + "\n")
+		if err != nil {
+			log.Error().Err(err)
+		}
 	}
-
-	datawriter.Flush()
-
 }
 
 func getKubeNodes(kubeconfig *string) ([]net.IP, error) {
@@ -220,9 +223,10 @@ func main() {
 
 				writeNginx(configs, nginxconfig)
 
+				time.Sleep(5 * time.Second)
+
 				NginxReload(systemctl)
 
-				time.Sleep(5 * time.Second)
 			}
 
 			// Reset for the next iteration
