@@ -10,14 +10,14 @@ A janky fix for dealing with maintaining IPTables rules for Debian/Ubuntu system
 The reason for this tool includes keeping iptables rules synchronized with your Linode Kubernetes Cluster
 to ensure only nodes from your cluster can communicate with services running on a Linode instance.  For example,
 let's say you have mongodb running on a Linode and you only want your LKS nodes to communicated with MongoDB.  This
-tool helps acheive that goal by monitoring LKS for nodes and building a list of IP Addresses to add to IPTables.
+tool helps achieve that goal by monitoring LKS for nodes and building a list of IP Addresses to add to IPTables chain.
 
-This creates a IPTables chain called mongodb and appends all the rules to this chain.  This chain is attached to the 
-filter table.  
+The tool works by creating an IPTables chain called mongodb and appends all the rules to this chain.  This chain is attached to the 
+filter table.  By creating a chain, you reduce the risk of conflicting with UFW or other firewall management system.  
 
 ### Usage
 ```bash
-kube-linode -rules /etc/ufw/user.rules -ufw /usr/sbin/ufw
+./kube-linode 
 ```
 
 ## Kube-Nginx
@@ -27,6 +27,6 @@ Nginx configuration.  Once the configuration is set, it will call sysctemctl rel
 
 ### usage 
 ```bash
-kube-nginx -config /path/to/upstream.conf -systemctl /path/to/systemctl
+./kube-nginx -config /path/to/upstream.conf -systemctl /path/to/systemctl
 ```
 
