@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"flag"
@@ -31,7 +30,7 @@ type upstream struct {
 // UFWReload - Reload UFW after updating the user.rules file
 func NginxReload(systemctlcmd string) {
 
-	log.Info().Msgf("reloading ufw using command: %s reload", systemctlcmd)
+	log.Info().Msgf("reloading nginx using command: %s reload", systemctlcmd)
 	cmd := exec.Command(systemctlcmd, "reload", "nginx")
 
 	stdout, err := cmd.StdoutPipe()
@@ -101,16 +100,16 @@ func writeNginx(ngixConfig []string, config string) {
 
 	defer file.Close()
 
-	datawriter := bufio.NewWriter(file)
+	//datawriter := bufio.NewWriter(file)
 
 	for _, data := range ngixConfig {
 
-		//fmt.Fprintln(file, data)
+		fmt.Fprintln(file, data)
 
-		_, err = datawriter.WriteString(data + "\n")
-		if err != nil {
-			log.Error().Err(err)
-		}
+		//_, err = datawriter.WriteString(data + "\n")
+		//if err != nil {
+		//	log.Error().Err(err)
+		//}
 	}
 }
 
