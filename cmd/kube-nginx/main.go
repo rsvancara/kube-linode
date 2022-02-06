@@ -122,18 +122,18 @@ func getKubeNodes(kubeconfig *string) ([]net.IP, error) {
 	// use the current context in kubeconfig
 	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
 	if err != nil {
-		panic(err.Error())
+		return results, err
 	}
 
 	// create the clientset
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		panic(err.Error())
+		return results, err
 	}
 
 	nodes, err := clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
-		panic(err.Error())
+		return results, err
 	}
 	available := 0
 	for _, val := range nodes.Items {
@@ -210,12 +210,18 @@ func main() {
 
 		// Track changes in the list
 		var oldHosts []net.IP
-		var newHosts []net.IP
+		//var newHosts []net.IP
 
 		// Forever loop
 		for {
 
-			newHosts, _ = getKubeNodes(kubeconfig)
+			newHosts, err := getKubeNodes(kubeconfig)
+			if err != nil {
+				log.Error().Err(err)
+				// Log the error and continue
+				continue
+			}
+
 			if isDiff(newHosts, oldHosts) {
 
 				configs := buildNginx(newHosts)
