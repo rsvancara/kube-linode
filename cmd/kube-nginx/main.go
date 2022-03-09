@@ -75,6 +75,11 @@ func buildNginx(ipList []net.IP) []string {
 	tryingadventure.upstream = "tryingadventure"
 	upstreams = append(upstreams, tryingadventure)
 
+	var devops upstream
+	devops.port = 32021
+	devops.upstream = "devops"
+	upstreams = append(upstreams, devops)
+
 	var monitor upstream
 	monitor.port = 32699
 	monitor.upstream = "monitor"
